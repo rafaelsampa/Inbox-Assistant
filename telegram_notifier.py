@@ -105,12 +105,11 @@ def _format_email_block(email_data: dict, index: int) -> str:
     def esc(s: str) -> str:
         return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    destaque_str = " ⭐ <b>DESTAQUE</b>" if destaque else ""
+    destaque_str = " ⭐ DESTAQUE" if destaque else ""
     linha = (
-        f"{emoji} <b>[{esc(categoria)}]{destaque_str}</b>\n"
-        f"📌 <b>Assunto:</b> {esc(subject)}\n"
-        f"👤 <b>De:</b> {esc(remetente)}\n"
-        f"📝 {esc(resumo)}"
+        f"{emoji} <b>{esc(subject)}</b>{destaque_str}\n"
+        f"👤 {esc(remetente)}\n"
+        f"💬 {esc(resumo)}"
     )
     return linha
 

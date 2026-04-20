@@ -70,9 +70,13 @@ def _call_groq(api_key: str, email_content: str, model: str = "llama3-8b-8192") 
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            content = result["choices"][0]["message"]["content"].strip()
-            return json.loads(content)
+                    result = json.loads(response.read().decode("utf-8"))
+                    content = result["choices"][0]["message"]["content"].strip()
+                    
+                    # Limpeza do markdown para o Python não quebrar
+                    content = content.replace("```json", "").replace("```", "").strip()
+                    
+                    return json.loads(content)
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
         logger.error(f"Groq HTTP {e.code}: {body[:300]}")
@@ -183,7 +187,7 @@ Corpo do email:
             "categoria": "Indefinido",
             "destaque": False,
             "remetente_identificado": email_data.get("sender", "Desconhecido"),
-            "resumo": f"Assunto: {email_data.get('subject', '(sem assunto)')} — Não foi possível classificar este email automaticamente.",
+            "resumo": "Erro na API da IA. Email não classificado.",
         }
 
     # Garante que todas as keys existam no resultado
