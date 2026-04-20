@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: "3.12"
           # Cache de dependências (não há nenhuma externa, mas boa prática)
-          cache: "pip"
+          # cache: "pip"
 
       - name: Executar o Assistente de Inbox
         working-directory: ./  # Ajuste se seus scripts estiverem em subpasta
