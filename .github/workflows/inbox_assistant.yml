@@ -1,0 +1,72 @@
+# .github/workflows/inbox_assistant.yml
+#
+# Executa o Assistente de Inbox a cada 4 horas.
+# Requer os seguintes Secrets configurados no repositório:
+#   Settings → Secrets and variables → Actions → New repository secret
+#
+# Secrets obrigatórios:
+#   IMAP_SERVER         — ex: imap.gmail.com
+#   EMAIL_ADDRESS       — seu endereço de email
+#   EMAIL_PASSWORD      — senha ou App Password (Gmail exige App Password)
+#   TELEGRAM_BOT_TOKEN  — token do bot (via @BotFather)
+#   TELEGRAM_CHAT_ID    — seu chat ID (via @userinfobot)
+#
+# Ao menos um dos abaixo:
+#   GROQ_API_KEY        — chave da Groq Cloud (https://console.groq.com)
+#   GEMINI_API_KEY      — chave do Google AI Studio (https://aistudio.google.com)
+
+name: Inbox Assistant
+
+on:
+  schedule:
+    # Executa às 00:00, 04:00, 08:00, 12:00, 16:00 e 20:00 UTC
+    - cron: "0 0,4,8,12,16,20 * * *"
+
+  # Permite execução manual pela interface do GitHub (útil para testes)
+  workflow_dispatch:
+
+jobs:
+  run-assistant:
+    name: Processar Inbox e Notificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10  # Cancela se demorar mais que 10 minutos
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          # Cache de dependências (não há nenhuma externa, mas boa prática)
+          cache: "pip"
+
+      - name: Executar o Assistente de Inbox
+        working-directory: ./  # Ajuste se seus scripts estiverem em subpasta
+        env:
+          # Credenciais de email
+          IMAP_SERVER:        ${{ secrets.IMAP_SERVER }}
+          EMAIL_ADDRESS:      ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_PASSWORD:     ${{ secrets.EMAIL_PASSWORD }}
+
+          # Telegram
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+
+          # LLMs (configure ao menos uma)
+          GROQ_API_KEY:       ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+
+          # Configurações opcionais (valores padrão já definidos no main.py)
+          HOURS_BACK:  "4"
+          MAX_EMAILS:  "50"
+          MAILBOX:     "INBOX"
+
+        run: python main.py
+
+      - name: Verificar resultado
+        if: failure()
+        run: |
+          echo "❌ O Assistente de Inbox falhou. Verifique os logs acima."
+          exit 1
