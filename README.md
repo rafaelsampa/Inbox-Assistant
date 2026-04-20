@@ -17,6 +17,7 @@ O foco principal deste projeto é a estabilidade temporal, a performance e o con
 * **Inteligência Artificial:** Groq Cloud API (modelos Llama 3) ou Google Gemini API, priorizando os planos gratuitos (Free Tier).
 
 **4. Regras de Negócio e Prompting da IA**
+
 A IA integrada ao script deve receber o corpo do email extraído e retornar um JSON estrito. As regras de classificação são:
 * **[Pessoal]:** Identificar o remetente e a suposta identidade (exemplo: Colega de faculdade, familiar).
 * **[Profissional] Positivo / Negativo:** Filtro focado exclusivamente em respostas de processos seletivos.
@@ -26,6 +27,7 @@ A IA integrada ao script deve receber o corpo do email extraído e retornar um J
 * **Conteúdo Extraído:** O relatório final deve conter um resumo direto do corpo do email, com limite máximo e inflexível de 100 palavras.
 
 **5. Requisitos de Entrega (Instruções para a IA Desenvolvedora)**
+
 * Fornecer o código em blocos modulares, separando a lógica de conexão de email, a formatação do prompt para a LLM e o envio da mensagem para o Telegram.
 * Incluir tratamento de erros básico para evitar que o script quebre no GitHub Actions (exemplo: falha na conexão IMAP ou timeout na API da IA).
 * O código final deve ser legível, comentado e focado na simplicidade.
