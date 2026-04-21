@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 # ─── Emojis e mapeamento de categorias ──────────────────────────────────────
 
 CATEGORIA_CONFIG = {
-    "Pessoal":                  {"emoji": "👤", "ordem": 2},
-    "Profissional_Positivo":    {"emoji": "✅", "ordem": 0},  # Mais prioritário
-    "Profissional_Negativo":    {"emoji": "❌", "ordem": 3},
-    "Profissional_Oportunidade":{"emoji": "🚀", "ordem": 1},
-    "Spam":                     {"emoji": "🗑️", "ordem": 5},
-    "Indefinido":               {"emoji": "❓", "ordem": 4},
+    "Pessoal":                  {"emoji": "[Pess]", "ordem": 2},
+    "Profissional_Positivo":    {"emoji": "[Aprovado]", "ordem": 0},
+    "Profissional_Negativo":    {"emoji": "[Recusa]", "ordem": 3},
+    "Profissional_Oportunidade":{"emoji": "[Vaga]", "ordem": 1},
+    "Spam":                     {"emoji": "[Spam]", "ordem": 5},
+    "Indefinido":               {"emoji": "[?]", "ordem": 4},
 }
 
 
@@ -143,7 +143,7 @@ def format_report(emails: list[dict]) -> list[str]:
     for cat, n in sorted(counts.items(), key=lambda x: CATEGORIA_CONFIG.get(x[0], {}).get("ordem", 99)):
         cfg = CATEGORIA_CONFIG.get(cat, {"emoji": "❓"})
         header += f"\n  {cfg['emoji']} {cat}: {n}"
-    header += "\n" + "─" * 30
+    header += "\n" + "─" * 18
 
     # Ordena emails por prioridade de categoria e destaque
     def sort_key(e):

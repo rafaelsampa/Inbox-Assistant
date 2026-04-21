@@ -109,7 +109,7 @@ def _call_gemini(api_key: str, email_content: str, model: str = "gemini-1.5-flas
         ],
         "generationConfig": {
             "temperature": 0.1,
-            "maxOutputTokens": 400,
+            "maxOutputTokens": 800,
         },
     }
 
@@ -143,54 +143,49 @@ def _call_gemini(api_key: str, email_content: str, model: str = "gemini-1.5-flas
 
 def classify_email(email_data: dict) -> dict:
     """
-    Classifica um email usando a LLM configurada.
-    Tenta Groq primeiro; se falhar, tenta Gemini; se ambos falharem,
-    retorna classificação padrão 'Indefinido'.
-
-    Parâmetros:
-        email_data: dict com keys subject, sender, body
-
-    Retorna:
-        dict com keys: categoria, destaque, remetente_identificado, resumo
+    Classifica um email. Possui um pré-filtro para evitar gastos com LLM
+    em emails óbvios de plataformas de vagas que não são estágio.
     """
+    assunto_lower = email_data.get('subject', '').lower()
+    remetente_lower = email_data.get('sender', '').lower()
+    
+    # 1. PRÉ-FILTRO DE VAGAS: Verifica se é plataforma e se tem palavras-chave
+    plataformas = ["glassdoor", "linkedin", "gupy", "vagas.com", "infojobs"]
+    palavras_estagio = ["estágio", "estagio", "estagiário", "estagiario", "intern", "internship"]
+    
+    veio_de_plataforma = any(plat in remetente_lower for plat in plataformas)
+    tem_estagio_no_assunto = any(palavra in assunto_lower for palavra in palavras_estagio)
+
+    if veio_de_plataforma and not tem_estagio_no_assunto:
+        logger.info("Bloqueado no pré-filtro: Vaga genérica (não é estágio).")
+        return {
+            "categoria": "Spam",
+            "destaque": False,
+            "remetente_identificado": email_data.get("sender", "Plataforma de Vagas"),
+            "resumo": "Vaga irrelevante descartada automaticamente (não contém termos de estágio)."
+        }
+
+    # 2. CONTINUA PARA A IA SE PASSAR NO FILTRO
     groq_key = os.getenv("GROQ_API_KEY", "")
     gemini_key = os.getenv("GEMINI_API_KEY", "")
 
-    # Monta o conteúdo que será enviado para a LLM
-    email_content = f"""Assunto: {email_data.get('subject', '')}
-Remetente: {email_data.get('sender', '')}
-Data: {email_data.get('date', '')}
-
-Corpo do email:
-{email_data.get('body', '')}"""
-
+    email_content = f"Assunto: {email_data.get('subject', '')}\nRemetente: {email_data.get('sender', '')}\n\nCorpo:\n{email_data.get('body', '')}"
     result = None
 
-    # Tenta Groq
     if groq_key:
-        logger.info("Tentando classificar via Groq...")
         result = _call_groq(groq_key, email_content)
-        if result:
-            logger.info(f"Groq classificou como: {result.get('categoria')}")
-
-    # Fallback Gemini
+    
     if not result and gemini_key:
-        logger.info("Groq falhou ou não configurado. Tentando Gemini...")
         result = _call_gemini(gemini_key, email_content)
-        if result:
-            logger.info(f"Gemini classificou como: {result.get('categoria')}")
 
-    # Fallback padrão se ambos falharem
     if not result:
-        logger.warning("Ambas as APIs falharam. Usando classificação padrão.")
         result = {
             "categoria": "Indefinido",
             "destaque": False,
             "remetente_identificado": email_data.get("sender", "Desconhecido"),
-            "resumo": "Erro na API da IA. Email não classificado.",
+            "resumo": "Erro na API da IA ao ler email muito longo.",
         }
 
-    # Garante que todas as keys existam no resultado
     result.setdefault("categoria", "Indefinido")
     result.setdefault("destaque", False)
     result.setdefault("remetente_identificado", None)
