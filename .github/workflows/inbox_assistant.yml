@@ -19,8 +19,8 @@ name: Inbox Assistant
 
 on:
   schedule:
-    # Executa às 00:00, 04:00, 08:00, 12:00, 16:00 e 20:00 UTC
-    - cron: "0 0,4,8,12,16,20 * * *"
+    # 22h local (01h UTC), 06h local (09h UTC), 12h local (15h UTC), 18h local (21h UTC)
+    - cron: "0 1,9,15,21 * * *"
 
   # Permite execução manual pela interface do GitHub (útil para testes)
   workflow_dispatch:
@@ -59,7 +59,7 @@ jobs:
           GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
 
           # Configurações opcionais (valores padrão já definidos no main.py)
-          HOURS_BACK:  "4"
+          HOURS_BACK:  "9"
           MAX_EMAILS:  "50"
           MAILBOX:     "INBOX"
 
