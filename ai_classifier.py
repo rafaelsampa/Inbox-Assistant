@@ -17,28 +17,26 @@ logger = logging.getLogger(__name__)
 
 # ─── Prompt do sistema ────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """Você é um classificador inteligente de emails. Sua tarefa é analisar o conteúdo
-de um email e retornar EXCLUSIVAMENTE um JSON válido, sem qualquer texto adicional antes ou depois.
+SYSTEM_PROMPT = """Você é um classificador inteligente de emails focado em extrema objetividade.
+Sua tarefa é analisar o email e retornar EXCLUSIVAMENTE um JSON válido.
 
-Categorias de classificação:
-- "Pessoal": Mensagens de pessoas físicas conhecidas (familiares, amigos, colegas).
-  Identifique quem é o remetente e qual a suposta relação.
-- "Profissional_Positivo": Resposta POSITIVA de processo seletivo (aprovação, convite para entrevista).
-- "Profissional_Negativo": Resposta NEGATIVA de processo seletivo (reprovação, agradecimento genérico).
-- "Profissional_Oportunidade": Alerta de nova vaga de estágio em Ciência da Computação.
-  Destaque especial se for nas áreas: Segurança da Informação, Criptografia, Infraestrutura de Software ou Sistemas Operacionais.
-- "Spam": Lixo eletrônico, newsletters, promoções, notificações automáticas de sistemas.
+Categorias obrigatórias:
+1. "Acao_Necessaria": Emails que exigem atitude imediata (aprovações em processos seletivos, entrevistas, envio de documentos, demandas urgentes).
+2. "Pessoal": Mensagens diretas de seres humanos conhecidos.
+3. "Oportunidade": Vagas EXCLUSIVAMENTE para posições de Estágio (Estágio, Estagiário, Intern). Se for nível Junior, Pleno, Sênior, ou não especificar, classifique imediatamente como "Spam".
+4. "Outros": Notificações de sistemas (GitHub, Vercel, Google), alertas de segurança, recibos, comunicações rotineiras que não exigem ação.
+5. "Spam": Marketing, promoções, newsletters genéricas, vagas fora do perfil.
 
-Formato de resposta JSON obrigatório:
+Formato de resposta JSON:
 {
-  "categoria": "<uma das categorias acima>",
-  "destaque": <true se for Profissional_Positivo ou Oportunidade em área técnica prioritária, false caso contrário>,
-  "remetente_identificado": "<quem é o remetente, ex: 'Recrutadora da Empresa X', 'Colega de faculdade João'> ou null",
-  "resumo": "<resumo direto do conteúdo do email, máximo 100 palavras, em português, linguagem objetiva>"
+  "categoria": "<uma das 5 categorias acima>",
+  "subtag": "<Uma palavra curta que defina o assunto. Ex: Entrevista, Documento, Segurança, GitHub, Lancer>",
+  "remetente_identificado": "<Nome curto da empresa ou pessoa. Ex: Pitang, Google, Leonard>",
+  "resumo": "<Para Acao_Necessaria, Pessoal e Outros: O que aconteceu e o que deve ser feito. Máximo 2 linhas.>",
+  "foco": "<APENAS PARA Oportunidade: Qual a área técnica? Ex: Segurança da Informação, Embarcados, Web>",
+  "analise": "<APENAS PARA Oportunidade: Vale a pena? Exige o quê? Máximo 2 linhas.>"
 }
-
-IMPORTANTE: Retorne APENAS o JSON. Sem markdown, sem explicações, sem blocos de código."""
-
+"""
 
 def _call_groq(api_key: str, email_content: str, model: str = "llama3-8b-8192") -> dict | None:
     """
@@ -54,7 +52,7 @@ def _call_groq(api_key: str, email_content: str, model: str = "llama3-8b-8192") 
             {"role": "user", "content": email_content},
         ],
         "temperature": 0.1,
-        "max_tokens": 400,
+        "max_tokens": 800,
     }
 
     data = json.dumps(payload).encode("utf-8")
@@ -181,15 +179,19 @@ def classify_email(email_data: dict) -> dict:
     if not result:
         result = {
             "categoria": "Indefinido",
-            "destaque": False,
+            "subtag": "Erro",
             "remetente_identificado": email_data.get("sender", "Desconhecido"),
             "resumo": "Erro na API da IA ao ler email muito longo.",
+            "foco": "",
+            "analise": ""
         }
 
     result.setdefault("categoria", "Indefinido")
-    result.setdefault("destaque", False)
-    result.setdefault("remetente_identificado", None)
+    result.setdefault("subtag", "Aviso")
+    result.setdefault("remetente_identificado", email_data.get("sender", "Desconhecido")[:15])
     result.setdefault("resumo", "(sem resumo)")
+    result.setdefault("foco", "")
+    result.setdefault("analise", "")
 
     return result
 
