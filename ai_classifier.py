@@ -33,43 +33,49 @@ Formato de resposta JSON:
   "analise": "<APENAS PARA Oportunidade: Vale a pena? Exige o quê?>"
 }
 """
-def _call_gemini(api_key: str, email_content: str) -> dict | None:
-    # gemini-2.0-flash é o modelo Flash atual e gratuito (substitui o 1.5-flash)
+def _call_gemini(api_key: str, email_content: str, retries: int = 3) -> dict | None:
     model = "gemini-2.0-flash"
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent?key={api_key}"
     )
-
     payload = {
         "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\n---\n\n" + email_content}]}],
         "generationConfig": {
             "temperature": 0.1,
             "maxOutputTokens": 800,
-            # Força saída JSON — elimina o problema de markdown fences no retorno
             "responseMimeType": "application/json",
         },
     }
 
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    for attempt in range(1, retries + 1):
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                content = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                content = content.replace("```json", "").replace("```", "").strip()
+                return json.loads(content)
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            content = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            # responseMimeType já previne fences, mas o .replace é defesa extra
-            content = content.replace("```json", "").replace("```", "").strip()
-            return json.loads(content)
-    except urllib.error.HTTPError as e:
-        logger.error(f"Gemini HTTP {e.code}: {e.read().decode('utf-8')[:300]}")
-    except Exception as e:
-        logger.error(f"Erro Gemini: {e}")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            if e.code == 429:
+                wait = 15 * attempt  # 15s, 30s, 45s
+                logger.warning(f"Gemini 429 (rate limit). Tentativa {attempt}/{retries}. Aguardando {wait}s...")
+                time.sleep(wait)
+            else:
+                logger.error(f"Gemini HTTP {e.code}: {body[:300]}")
+                return None
+        except Exception as e:
+            logger.error(f"Erro Gemini: {e}")
+            return None
 
+    logger.error("Gemini: todas as tentativas esgotadas após 429s repetidos.")
     return None
 
 
@@ -121,5 +127,5 @@ def classify_emails_batch(emails: list[dict], delay_between_calls: float = 1.0) 
         logger.info(f"Classificando {i}/{len(emails)}: {email_data.get('subject', '')[:40]}")
         enriched.append({**email_data, "classificacao": classify_email(email_data)})
         if i < len(emails):
-            time.sleep(delay_between_calls)
+            time.sleep(5) # Delay para evitar rate limits
     return enriched

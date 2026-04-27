@@ -81,7 +81,7 @@ def main() -> int:
         # ── 3. Classificação via IA ───────────────────────────────────────────
         if emails:
             logger.info("Iniciando classificação via IA...")
-            emails_classified = classify_emails_batch(emails, delay_between_calls=1.2)
+            emails_classified = classify_emails_batch(emails)
         else:
             emails_classified = []
 
