@@ -98,7 +98,7 @@ def fetch_unread_emails(
         mail.select(mailbox)
 
         # Busca emails não lidos que AINDA NÃO tem a etiqueta da IA
-        status, messages = mail.search(None, 'X-GM-RAW', 'is:unread -label:InboxAI-seen')
+        status, messages = mail.search(None, 'X-GM-RAW "is:unread -label:InboxAI-seen"')
         if status != "OK":
             logger.error("Falha ao buscar emails UNSEEN.")
             return []
@@ -111,10 +111,9 @@ def fetch_unread_emails(
 
         # Threshold de tempo
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-
         for uid in uids:
             try:
-                # O PEEK lê o conteúdo sem remover o status de "Não Lido"
+                # PEEK garante que o fetch não marca como lido
                 status, data = mail.fetch(uid, "(BODY.PEEK[])")
                 if status != "OK":
                     continue
@@ -122,41 +121,42 @@ def fetch_unread_emails(
                 raw_email = data[0][1]
                 msg = email.message_from_bytes(raw_email)
 
-                # Data do email
+                # Filtro de janela de tempo
                 date_str = msg.get("Date", "")
                 try:
                     from email.utils import parsedate_to_datetime
                     email_date = parsedate_to_datetime(date_str)
-                    # Normaliza para UTC
                     if email_date.tzinfo is None:
                         email_date = email_date.replace(tzinfo=timezone.utc)
                     if email_date < cutoff:
-                        continue  # Email fora da janela de tempo
+                        continue
                 except Exception:
-                    pass  # Se não conseguir parsear a data, inclui o email mesmo assim
+                    pass
 
                 subject = decode_mime_words(msg.get("Subject", "(sem assunto)"))
-                sender = decode_mime_words(msg.get("From", "(remetente desconhecido)"))
-                body = extract_body(msg)
-
-                # Limita o corpo a 3000 chars antes de enviar para a IA (economia de tokens)
+                sender  = decode_mime_words(msg.get("From", "(remetente desconhecido)"))
+                body    = extract_body(msg)
                 body_truncated = body[:3000] if body else "(corpo vazio)"
 
                 emails_data.append({
-                    "uid": uid.decode(),
+                    "uid":     uid.decode(),
                     "subject": subject,
-                    "sender": sender,
-                    "date": date_str,
-                    "body": body_truncated,
+                    "sender":  sender,
+                    "date":    date_str,
+                    "body":    body_truncated,
                 })
 
-                # Applica o marcador do Gmail para auditoria
+                # 1. Adiciona a label de auditoria
                 try:
                     mail.store(uid, '+X-GM-LABELS', 'InboxAI-seen')
-                    # Gmail re-adiciona \Seen ao manipular labels — remove explicitamente
+                except Exception as e:
+                    logger.warning(f"Erro ao adicionar label InboxAI-seen no email {uid}: {e}")
+
+                # 2. Remove \Seen explicitamente (Gmail re-adiciona ao manipular labels)
+                try:
                     mail.store(uid, '-FLAGS', '\\Seen')
                 except Exception as e:
-                    logger.warning(f"Erro ao adicionar tag ou restaurar status no email {uid}: {e}")
+                    logger.warning(f"Erro ao restaurar status não-lido no email {uid}: {e}")
 
             except Exception as e:
                 logger.warning(f"Erro ao processar email UID {uid}: {e}")
