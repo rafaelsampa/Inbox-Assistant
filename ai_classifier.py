@@ -33,25 +33,36 @@ Formato de resposta JSON:
   "analise": "<APENAS PARA Oportunidade: Vale a pena? Exige o quê?>"
 }
 """
-
 def _call_gemini(api_key: str, email_content: str) -> dict | None:
-    # Usando a versão '-latest' que garante o endpoint ativo
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}"
-    
+    # gemini-2.0-flash é o modelo Flash atual e gratuito (substitui o 1.5-flash)
+    model = "gemini-2.0-flash"
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent?key={api_key}"
+    )
+
     payload = {
         "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\n---\n\n" + email_content}]}],
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 800}
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 800,
+            # Força saída JSON — elimina o problema de markdown fences no retorno
+            "responseMimeType": "application/json",
+        },
     }
 
     req = urllib.request.Request(
-        url, data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="POST"
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
             result = json.loads(response.read().decode("utf-8"))
             content = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            # responseMimeType já previne fences, mas o .replace é defesa extra
             content = content.replace("```json", "").replace("```", "").strip()
             return json.loads(content)
     except urllib.error.HTTPError as e:
@@ -60,6 +71,8 @@ def _call_gemini(api_key: str, email_content: str) -> dict | None:
         logger.error(f"Erro Gemini: {e}")
 
     return None
+
+
 
 def classify_email(email_data: dict) -> dict:
     assunto_lower = email_data.get('subject', '').lower()

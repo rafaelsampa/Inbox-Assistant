@@ -153,8 +153,10 @@ def fetch_unread_emails(
                 # Applica o marcador do Gmail para auditoria
                 try:
                     mail.store(uid, '+X-GM-LABELS', 'InboxAI-seen')
+                    # Gmail re-adiciona \Seen ao manipular labels — remove explicitamente
+                    mail.store(uid, '-FLAGS', '\\Seen')
                 except Exception as e:
-                    logger.warning(f"Erro ao adicionar tag no email {uid}: {e}")
+                    logger.warning(f"Erro ao adicionar tag ou restaurar status no email {uid}: {e}")
 
             except Exception as e:
                 logger.warning(f"Erro ao processar email UID {uid}: {e}")
