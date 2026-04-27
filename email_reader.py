@@ -97,8 +97,8 @@ def fetch_unread_emails(
         mail.login(email_address, password)
         mail.select(mailbox)
 
-        # Busca emails não lidos (UNSEEN)
-        status, messages = mail.search(None, "UNSEEN")
+        # Busca emails não lidos que AINDA NÃO tem a etiqueta da IA
+        status, messages = mail.search(None, 'X-GM-RAW', 'is:unread -label:InboxAI-seen')
         if status != "OK":
             logger.error("Falha ao buscar emails UNSEEN.")
             return []
@@ -114,7 +114,8 @@ def fetch_unread_emails(
 
         for uid in uids:
             try:
-                status, data = mail.fetch(uid, "(RFC822)")
+                # O PEEK lê o conteúdo sem remover o status de "Não Lido"
+                status, data = mail.fetch(uid, "(BODY.PEEK[])")
                 if status != "OK":
                     continue
 

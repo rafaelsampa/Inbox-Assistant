@@ -32,28 +32,16 @@ logger = logging.getLogger("main")
 
 
 def validate_env() -> bool:
-    """
-    Verifica se todas as variáveis de ambiente obrigatórias estão presentes.
-    Retorna True se válido, False caso contrário.
-    """
+    """Verifica se as variáveis de ambiente obrigatórias estão presentes."""
     required = [
-        "IMAP_SERVER",
-        "EMAIL_ADDRESS",
-        "EMAIL_PASSWORD",
-        "TELEGRAM_BOT_TOKEN",
-        "TELEGRAM_CHAT_ID",
+        "IMAP_SERVER", "EMAIL_ADDRESS", "EMAIL_PASSWORD",
+        "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "GEMINI_API_KEY"
     ]
     missing = [var for var in required if not os.getenv(var)]
 
     if missing:
-        logger.error(f"Variáveis de ambiente ausentes: {', '.join(missing)}")
+        logger.error(f"Variáveis ausentes: {', '.join(missing)}")
         return False
-
-    # Ao menos uma API de LLM deve estar configurada
-    if not os.getenv("GROQ_API_KEY") and not os.getenv("GEMINI_API_KEY"):
-        logger.error("Nenhuma API de LLM configurada. Defina GROQ_API_KEY ou GEMINI_API_KEY.")
-        return False
-
     return True
 
 
